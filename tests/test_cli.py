@@ -86,7 +86,7 @@ class TestCLI(unittest.TestCase):
             ],
             capture_output=True,
             text=True,
-            timeout=60
+            timeout=10
         )
         
         # Should complete without crashing (return code 0)

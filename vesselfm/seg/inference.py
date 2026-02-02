@@ -80,7 +80,7 @@ def run_inference(cfg):
     image_paths, mask_paths = get_paths(cfg)
     logger.info(f"Found {len(image_paths)} images in {cfg.image_path}.")
     
-    if len(image_paths) == 0:
+    if not image_paths:
         logger.error(f"No images found in {cfg.image_path}. Please ensure the folder contains image files.")
         return
 
