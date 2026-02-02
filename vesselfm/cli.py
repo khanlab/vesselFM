@@ -93,8 +93,8 @@ def main():
     parser.add_argument(
         "--device",
         type=str,
-        default="cuda:0",
-        help="Device to use for inference (e.g., 'cuda:0', 'cpu')"
+        default=None,
+        help="Device to use for inference (e.g., 'cuda:0', 'cpu'). Default: 'cuda:0' if available, 'cpu' otherwise"
     )
     parser.add_argument(
         "--batch-size",

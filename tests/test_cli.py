@@ -71,8 +71,13 @@ class TestCLI(unittest.TestCase):
         )
         self.assertNotEqual(result.returncode, 0)
     
-    def test_cli_basic_inference(self):
-        """Test basic CLI inference with default parameters."""
+    def test_cli_argument_parsing_with_inference_attempt(self):
+        """Test that CLI correctly parses arguments and attempts inference.
+        
+        This test verifies the CLI interface works correctly. It may fail at
+        the inference stage if dependencies (torch, model) are not available,
+        but that's acceptable - we're testing the CLI, not the model.
+        """
         # Note: This test will fail if the model/dependencies are not available
         # We're testing the CLI interface, not the actual model inference
         result = subprocess.run(
@@ -87,20 +92,21 @@ class TestCLI(unittest.TestCase):
             timeout=300  # 5 minutes timeout
         )
         
-        # Check if output was attempted (may fail due to missing dependencies)
-        # but the CLI should have parsed arguments correctly
+        # Check that CLI parsed arguments correctly
+        # Success: inference completed
+        # Expected failure: missing dependencies (torch, etc.)
+        # Unexpected failure: CLI parsing errors
         if result.returncode != 0:
-            # If it fails, it should be due to missing dependencies (torch, etc.)
-            # not CLI parsing errors
             error_lower = result.stderr.lower()
-            self.assertTrue(
-                "model" in error_lower or 
+            is_expected_error = (
                 "torch" in error_lower or
                 "modulenotfounderror" in error_lower or
                 "importerror" in error_lower or
-                "Loading model" in result.stdout or
-                result.returncode == 0,
-                f"Unexpected error: {result.stderr}"
+                "model" in error_lower
+            )
+            self.assertTrue(
+                is_expected_error,
+                f"CLI failed with unexpected error (not a dependency issue): {result.stderr}"
             )
         else:
             # If successful, check that output folder has files
@@ -108,7 +114,11 @@ class TestCLI(unittest.TestCase):
             self.assertGreater(len(output_files), 0, "No output files generated")
     
     def test_cli_with_custom_params(self):
-        """Test CLI with custom parameters."""
+        """Test that CLI correctly parses custom parameters.
+        
+        This test verifies various CLI options are parsed correctly. Like the
+        basic test, it may fail at inference if dependencies are missing.
+        """
         result = subprocess.run(
             [
                 sys.executable, "-m", "vesselfm.cli",
@@ -124,17 +134,18 @@ class TestCLI(unittest.TestCase):
             timeout=300
         )
         
-        # Similar to basic inference test - check CLI worked correctly
+        # Check that CLI parsed custom arguments correctly
         if result.returncode != 0:
             error_lower = result.stderr.lower()
-            self.assertTrue(
-                "model" in error_lower or 
+            is_expected_error = (
                 "torch" in error_lower or
                 "modulenotfounderror" in error_lower or
                 "importerror" in error_lower or
-                "Loading model" in result.stdout or
-                result.returncode == 0,
-                f"Unexpected error: {result.stderr}"
+                "model" in error_lower
+            )
+            self.assertTrue(
+                is_expected_error,
+                f"CLI failed with unexpected error (not a dependency issue): {result.stderr}"
             )
 
 
