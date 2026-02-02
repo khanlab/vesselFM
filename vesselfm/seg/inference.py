@@ -65,7 +65,12 @@ def run_inference(cfg):
     Run inference with the given configuration.
     
     Args:
-        cfg: Configuration object (can be from Hydra or programmatically created)
+        cfg: Configuration object (can be from Hydra or programmatically created).
+    
+    Returns:
+        None: This function performs inference, writes outputs to disk, and logs results.
+            If no images are found in ``cfg.image_path``, it logs an error message and
+            returns early without performing inference.
     """
     # seed libraries
     np.random.seed(cfg.seed)
