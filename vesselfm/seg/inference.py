@@ -60,8 +60,13 @@ def resample(image, factor=None, target_shape=None):
         new_d, new_h, new_w = int(round(d / factor)), int(round(h / factor)), int(round(w / factor))
     return F.interpolate(image, size=(new_d, new_h, new_w), mode="trilinear", align_corners=False)
 
-@hydra.main(config_path="configs", config_name="inference", version_base="1.3.2")
-def main(cfg):
+def run_inference(cfg):
+    """
+    Run inference with the given configuration.
+    
+    Args:
+        cfg: Configuration object (can be from Hydra or programmatically created)
+    """
     # seed libraries
     np.random.seed(cfg.seed)
     torch.manual_seed(cfg.seed)
@@ -152,6 +157,12 @@ def main(cfg):
         mean_metrics = calculate_mean_metrics(list(metrics_dict.values()), round_to=cfg.round_to)
         logger.info(f"Mean metrics: dice {mean_metrics['dice'].item()}, cldice {mean_metrics['cldice'].item()}")
     logger.info("Done.")
+
+
+@hydra.main(config_path="configs", config_name="inference", version_base="1.3.2")
+def main(cfg):
+    """Main entry point when using Hydra configuration."""
+    run_inference(cfg)
 
 
 if __name__ == "__main__":
