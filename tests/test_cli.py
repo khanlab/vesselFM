@@ -89,9 +89,10 @@ class TestCLI(unittest.TestCase):
             timeout=10
         )
         
-        # Should complete without crashing (return code 0)
-        # and display an appropriate message about no images found
-        self.assertEqual(result.returncode, 0, f"CLI crashed: {result.stderr}")
+        # Should complete without crashing and should use a distinct non-zero
+        # exit code to indicate that no images were found, while displaying an
+        # appropriate message about no images found.
+        self.assertNotEqual(result.returncode, 0, f"CLI did not use a non-zero exit code for empty input folder. stderr: {result.stderr}")
         self.assertTrue(
             "no images found" in result.stderr.lower() or 
             "no images found" in result.stdout.lower(),
