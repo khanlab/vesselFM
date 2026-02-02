@@ -4,6 +4,7 @@ dependencies = []
 name = "vesselFM"
 requires-python = ">= 3.11"
 version = "0.1.0"
+scripts = { vesselfm-infer = "vesselfm.cli:main" }
 
 [build-system]
 build-backend = "hatchling.build"
@@ -30,8 +31,12 @@ pytorch-gpu = "*"
 [tool.pixi.feature.cpu.dependencies]
 pytorch-cpu = "*"
 
+[tool.pixi.feature.dev.dependencies]
+pytest = "*"
+
 [tool.pixi.environments]
 cpu = ["cpu"]
+dev = ["cpu","dev"]
 default = ["gpu"]
 
 [tool.pixi.dependencies]
@@ -52,3 +57,4 @@ tifffile = ">=2024.12.12,<2025"
 pylibtiff = ">=0.7.0,<0.8"
 nibabel = ">=5.3.2,<6"
 gpustat = ">=1.1.1,<2"
+omegaconf = ">=2.3.0,<3"

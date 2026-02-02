@@ -11,6 +11,10 @@ setup(
     description='vesselfm',
     packages=find_packages(),
     install_requires=install_requires,
-    entry_points={},
+    entry_points={
+        'console_scripts': [
+            'vesselfm-infer=vesselfm.cli:main',
+        ],
+    },
     python_requires=">=3.9"
 )

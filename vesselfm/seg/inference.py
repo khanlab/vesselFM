@@ -60,8 +60,18 @@ def resample(image, factor=None, target_shape=None):
         new_d, new_h, new_w = int(round(d / factor)), int(round(h / factor)), int(round(w / factor))
     return F.interpolate(image, size=(new_d, new_h, new_w), mode="trilinear", align_corners=False)
 
-@hydra.main(config_path="configs", config_name="inference", version_base="1.3.2")
-def main(cfg):
+def run_inference(cfg):
+    """
+    Run inference with the given configuration.
+    
+    Args:
+        cfg: Configuration object (can be from Hydra or programmatically created).
+    
+    Returns:
+        None: This function performs inference, writes outputs to disk, and logs results.
+            If no images are found in ``cfg.image_path``, it logs an error message and
+            returns early without performing inference.
+    """
     # seed libraries
     np.random.seed(cfg.seed)
     torch.manual_seed(cfg.seed)
@@ -70,6 +80,14 @@ def main(cfg):
     # set device
     logger.info(f"Using device {cfg.device}.")
     device = cfg.device
+
+    # Check for images first before loading model
+    image_paths, mask_paths = get_paths(cfg)
+    logger.info(f"Found {len(image_paths)} images in {cfg.image_path}.")
+    
+    if not image_paths:
+        logger.error(f"No images found in {cfg.image_path}. Please ensure the folder contains image files.")
+        return
 
     # load model and ckpt
     model = load_model(cfg, device)
@@ -82,9 +100,6 @@ def main(cfg):
     # i/o
     output_folder = Path(cfg.output_folder)
     output_folder.mkdir(exist_ok=True)
-
-    image_paths, mask_paths = get_paths(cfg)
-    logger.info(f"Found {len(image_paths)} images in {cfg.image_path}.")
 
     file_ending = (cfg.image_file_ending if cfg.image_file_ending else image_paths[0].suffix)
     image_reader_writer = determine_reader_writer(file_ending)()
@@ -152,6 +167,12 @@ def main(cfg):
         mean_metrics = calculate_mean_metrics(list(metrics_dict.values()), round_to=cfg.round_to)
         logger.info(f"Mean metrics: dice {mean_metrics['dice'].item()}, cldice {mean_metrics['cldice'].item()}")
     logger.info("Done.")
+
+
+@hydra.main(config_path="configs", config_name="inference", version_base="1.3.2")
+def main(cfg):
+    """Main entry point when using Hydra configuration."""
+    run_inference(cfg)
 
 
 if __name__ == "__main__":
