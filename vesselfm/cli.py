@@ -51,7 +51,15 @@ def build_overrides(args) -> list[str]:
 def create_config(args):
     """
     Create a Hydra-composed configuration, then override from CLI args.
-    Returns a DictConfig compatible with hydra.utils.instantiate.
+
+    Args:
+        args (argparse.Namespace): Parsed command-line arguments used to build
+            the Hydra overrides for inference (e.g., input/output folders,
+            device, batch size, patch size, overlap, threshold, TTA scales,
+            and post-processing flag).
+
+    Returns:
+        DictConfig: A configuration object compatible with ``hydra.utils.instantiate``.
     """
     from hydra import compose, initialize_config_dir
     from hydra.core.global_hydra import GlobalHydra
