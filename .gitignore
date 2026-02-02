@@ -12,3 +12,6 @@ runs
 ckpts
 outputs
 wandb
+# pixi environments
+.pixi
+*.egg-info

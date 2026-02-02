@@ -2,7 +2,7 @@ from pathlib import Path
 
 import numpy as np
 import torch
-from skimage.morphology import skeletonize, skeletonize_3d
+from skimage.morphology import skeletonize
 from skimage.measure import euler_number, label
 from sklearn.metrics import confusion_matrix, roc_auc_score, average_precision_score
 import SimpleITK as sitk
@@ -99,12 +99,9 @@ class Evaluator:
         def cl_score(v, s):
             return np.sum(v * s) / np.sum(s)
 
-        if len(v_p.shape) == 2:
+        if len(v_p.shape) == 2 or len(v_p.shape) == 3:
             tprec = cl_score(v_p, skeletonize(v_l))
             tsens = cl_score(v_l, skeletonize(v_p))
-        elif len(v_p.shape) == 3:
-            tprec = cl_score(v_p, skeletonize_3d(v_l))
-            tsens = cl_score(v_l, skeletonize_3d(v_p))
         else:
             raise ValueError(f"Invalid shape for cl_dice: {v_p.shape}")
         return 2 * tprec * tsens / (tprec + tsens + np.finfo(float).eps)
