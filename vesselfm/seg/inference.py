@@ -76,6 +76,14 @@ def run_inference(cfg):
     logger.info(f"Using device {cfg.device}.")
     device = cfg.device
 
+    # Check for images first before loading model
+    image_paths, mask_paths = get_paths(cfg)
+    logger.info(f"Found {len(image_paths)} images in {cfg.image_path}.")
+    
+    if len(image_paths) == 0:
+        logger.error(f"No images found in {cfg.image_path}. Please ensure the folder contains image files.")
+        return
+
     # load model and ckpt
     model = load_model(cfg, device)
     model.to(device)
@@ -87,9 +95,6 @@ def run_inference(cfg):
     # i/o
     output_folder = Path(cfg.output_folder)
     output_folder.mkdir(exist_ok=True)
-
-    image_paths, mask_paths = get_paths(cfg)
-    logger.info(f"Found {len(image_paths)} images in {cfg.image_path}.")
 
     file_ending = (cfg.image_file_ending if cfg.image_file_ending else image_paths[0].suffix)
     image_reader_writer = determine_reader_writer(file_ending)()

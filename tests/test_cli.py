@@ -71,6 +71,33 @@ class TestCLI(unittest.TestCase):
         )
         self.assertNotEqual(result.returncode, 0)
     
+    def test_cli_empty_input_folder(self):
+        """Test that CLI handles empty input folder gracefully."""
+        # Create an empty folder
+        empty_dir = Path(self.temp_dir) / "empty"
+        empty_dir.mkdir()
+        
+        result = subprocess.run(
+            [
+                sys.executable, "-m", "vesselfm.cli",
+                "--input-folder", str(empty_dir),
+                "--output-folder", str(self.output_dir),
+                "--device", "cpu"
+            ],
+            capture_output=True,
+            text=True,
+            timeout=60
+        )
+        
+        # Should complete without crashing (return code 0)
+        # and display an appropriate message about no images found
+        self.assertEqual(result.returncode, 0, f"CLI crashed: {result.stderr}")
+        self.assertTrue(
+            "no images found" in result.stderr.lower() or 
+            "no images found" in result.stdout.lower(),
+            f"Missing 'no images found' message. stderr: {result.stderr}, stdout: {result.stdout}"
+        )
+    
     def test_cli_argument_parsing_with_inference_attempt(self):
         """Test that CLI correctly parses arguments and attempts inference.
         
