@@ -108,7 +108,8 @@ def example_distributed_computing():
     
     # Set up a local cluster (or connect to an existing one)
     # Note: memory_limit is per worker, so total memory usage = n_workers × memory_limit
-    # In this example: 4 workers × 4GB = 16GB total
+    # In this example: 4 workers × 4GB = 16GB total (cumulative across workers)
+    # Ensure your system has at least 16GB + overhead for scheduler and main process (recommend 20GB+ available)
     client = Client(n_workers=4, threads_per_worker=2, memory_limit='4GB')
     
     try:
