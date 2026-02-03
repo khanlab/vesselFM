@@ -76,16 +76,21 @@ def inference_chunk(
     image_tensor = torch.from_numpy(image_chunk_expanded.astype(np.float32)).to(device)
     
     # Apply transforms if needed (note: transforms expect specific format)
+    # MONAI transforms return torch tensors
     # For simplicity, we apply transforms element-wise if it's a batch
     if image_tensor.shape[0] == 1:
         # Single image, apply transforms
-        image_transformed = transforms(image_tensor.squeeze(0).cpu().numpy())[None].to(device)
+        # transforms() returns a tensor, add batch dim and move to device
+        image_transformed = transforms(image_tensor.squeeze(0).cpu().numpy())
+        image_transformed = torch.from_numpy(image_transformed) if isinstance(image_transformed, np.ndarray) else image_transformed
+        image_transformed = image_transformed[None].to(device)
     else:
         # Multiple images in batch - process separately
         transformed_list = []
         for i in range(image_tensor.shape[0]):
-            transformed = transforms(image_tensor[i].cpu().numpy())[None]
-            transformed_list.append(transformed)
+            transformed = transforms(image_tensor[i].cpu().numpy())
+            transformed = torch.from_numpy(transformed) if isinstance(transformed, np.ndarray) else transformed
+            transformed_list.append(transformed[None])
         image_transformed = torch.cat(transformed_list, dim=0).to(device)
     
     # Apply test time augmentation if configured

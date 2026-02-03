@@ -107,6 +107,8 @@ def example_distributed_computing():
     import dask.array as da
     
     # Set up a local cluster (or connect to an existing one)
+    # Note: memory_limit is per worker, so total memory usage = n_workers × memory_limit
+    # In this example: 4 workers × 4GB = 16GB total
     client = Client(n_workers=4, threads_per_worker=2, memory_limit='4GB')
     
     try:
