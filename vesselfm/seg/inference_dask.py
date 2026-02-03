@@ -76,12 +76,12 @@ def inference_chunk(
     image_tensor = torch.from_numpy(image_chunk_expanded.astype(np.float32)).to(device)
     
     # Apply transforms if needed (note: transforms expect specific format)
-    # MONAI transforms return torch tensors
-    # For simplicity, we apply transforms element-wise if it's a batch
+    # MONAI transforms may return either numpy arrays or torch tensors depending on configuration
+    # We handle both cases for compatibility
     if image_tensor.shape[0] == 1:
         # Single image, apply transforms
-        # transforms() returns a tensor, add batch dim and move to device
         image_transformed = transforms(image_tensor.squeeze(0).cpu().numpy())
+        # Convert to tensor if needed, add batch dim, and move to device
         image_transformed = torch.from_numpy(image_transformed) if isinstance(image_transformed, np.ndarray) else image_transformed
         image_transformed = image_transformed[None].to(device)
     else:
@@ -100,7 +100,9 @@ def inference_chunk(
         
         # Apply TTA transformations
         if cfg.tta.invert:
-            image_scaled = 1 - image_scaled if image_scaled.mean() > cfg.tta.invert_mean_thresh else image_scaled
+            # Invert image intensities if mean intensity is above threshold
+            if image_scaled.mean() > cfg.tta.invert_mean_thresh:
+                image_scaled = 1 - image_scaled
         
         if cfg.tta.equalize_hist:
             # Apply histogram equalization
