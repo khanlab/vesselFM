@@ -40,6 +40,30 @@ Adjust the [inference](./configs/inference.yaml) config file (see `#TODO`) and r
 
 Images to be segmented should be placed in `/path/to/image_folder` as `.nii.gz` files. The results will be saved in `/path/to/output_folder`. Although we did not use them in our experiments, test-time augmentations (see `tta`) and post-processing steps (see `post`) can further improve the quality of the predicted segmentation mask. We have, therefore, included these features in the inference script as well. It is further strongly advised to adjust other inference parameters (e.g., `upper` and `lower` percentiles in `transforms_config`) to suit your data.
 
+### Option 3: Dask-Based Inference (For Large Arrays)
+For very large 3D images that don't fit in memory, use the dask-based inference module:
+
+```python
+import dask.array as da
+from omegaconf import OmegaConf
+from vesselfm.seg.inference_dask import run_inference_dask
+
+# Load large image as dask array
+image = da.from_zarr('large_image.zarr')
+
+# Load configuration
+cfg = OmegaConf.load('vesselfm/seg/configs/inference.yaml')
+cfg.device = 'cpu'  # or 'cuda'
+
+# Run inference (creates lazy computation graph)
+result = run_inference_dask(image, cfg)
+
+# Save without loading into memory
+result.to_zarr('output_segmentation.zarr', overwrite=True)
+```
+
+The dask-based inference processes the image in chunks, allowing you to segment images that are too large to fit in memory. See [examples/inference_dask_example.py](../../examples/inference_dask_example.py) for more usage examples.
+
 ## Pre-Train on Three Data Sources
 Adjust the [training](./configs/train.yaml) and [dataset](./configs/data/real_drand_flow.yaml) config files (see `#TODO`) and run:
 
