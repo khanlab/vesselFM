@@ -47,6 +47,7 @@ class TestCLI(unittest.TestCase):
         self.assertEqual(result.returncode, 0)
         self.assertIn("--input-folder", result.stdout)
         self.assertIn("--output-folder", result.stdout)
+        self.assertIn("--chunk-size", result.stdout)  # Test for new chunk-size argument
     
     def test_cli_missing_required_args(self):
         """Test that CLI fails gracefully without required arguments."""
@@ -196,6 +197,7 @@ class TestConfigGeneration(unittest.TestCase):
             threshold=0.5,
             tta_scales=[1.0],
             apply_postprocessing=False,
+            chunk_size=None,
             disable_dask=False,
             dask_workers=None,
             dask_threads_per_worker=None,
@@ -215,6 +217,36 @@ class TestConfigGeneration(unittest.TestCase):
         self.assertEqual(cfg.merging.threshold, 0.5)
         self.assertEqual(cfg.tta.scales, [1.0])
         self.assertFalse(cfg.post.apply)
+    
+    def test_config_creation_with_chunk_size(self):
+        """Test that config is created correctly with custom chunk size."""
+        from vesselfm.cli import create_config
+        from argparse import Namespace
+        
+        args = Namespace(
+            input_folder=Path("/test/input"),
+            output_folder=Path("/test/output"),
+            mask_folder=None,
+            device="cpu",
+            batch_size=8,
+            patch_size=[64, 64, 64],
+            overlap=0.5,
+            threshold=0.5,
+            tta_scales=[1.0],
+            apply_postprocessing=False,
+            chunk_size=[500, 500, 500],
+            disable_dask=False,
+            dask_workers=None,
+            dask_threads_per_worker=None,
+            enable_dask_chunking=True,
+            disable_dask_chunking=False
+        )
+        
+        cfg = create_config(args)
+        
+        # Check that chunk_size is set correctly
+        self.assertEqual(cfg.dask.chunk_size, [500, 500, 500])
+        self.assertTrue(cfg.dask.chunk_images)
 
 
 if __name__ == "__main__":

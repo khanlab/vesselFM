@@ -269,6 +269,35 @@ class TestDaskChunking(unittest.TestCase):
         
         # Results should be very close (allowing for numerical differences)
         self.assertTrue(torch.allclose(output_dask, output_sequential, rtol=1e-4, atol=1e-6))
+    
+    def test_custom_chunk_size(self):
+        """Test processing with custom chunk size."""
+        image = torch.randn(1, 1, 100, 100, 100)
+        model = MockModel()
+        device = "cpu"
+        custom_chunk_size = (50, 50, 50)
+        overlap = 0.25
+        batch_size = 4
+        
+        output = process_image_with_dask_chunks(
+            image=image,
+            model=model,
+            device=device,
+            patch_size=custom_chunk_size,
+            overlap=overlap,
+            batch_size=batch_size,
+            use_dask=False
+        )
+        
+        # Check output shape matches input
+        self.assertEqual(output.shape, image.shape)
+        
+        # Verify chunk coordinates were computed with custom size
+        coords = compute_patch_coords(image.shape, custom_chunk_size, overlap)
+        # With chunk size 50 and image 100, overlap 0.25, step = 50*0.75 = 37.5 -> 37
+        # For each dimension: positions 0, 37, 50 (boundary adjusted) = at least 2 positions
+        # So total chunks should be at least 2^3 = 8
+        self.assertGreaterEqual(len(coords), 8)
 
 
 if __name__ == "__main__":
