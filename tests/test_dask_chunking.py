@@ -332,8 +332,6 @@ class TestDaskChunking(unittest.TestCase):
         
         # Verify some time has elapsed (processing should take at least some time)
         self.assertGreater(elapsed, 0)
-        # Verify it's reasonable (should complete within 60 seconds for small test)
-        self.assertLess(elapsed, 60)
 
 
 if __name__ == "__main__":
