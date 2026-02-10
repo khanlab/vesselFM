@@ -35,6 +35,7 @@ dask:
   enabled: true
   n_workers: null  # null means auto-detect based on available CPUs
   chunk_images: true  # Enable Dask-based chunking for individual images
+  chunk_size: [128, 128, 128]  # Default chunk size for Dask chunking (D, H, W)
   # Note: The following settings are placeholders for future distributed cluster support
   # and currently have no effect with the default thread-based scheduler.
   threads_per_worker: 2  # Not yet implemented - reserved for future distributed cluster

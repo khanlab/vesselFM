@@ -112,11 +112,12 @@ def process_image(image_path, image_data, mask_data, cfg, model, transforms, sav
             if use_dask_chunks:
                 # Use Dask-based parallel chunking
                 logger.debug(f"Using Dask-based chunking for {image_name}")
+                chunk_size = cfg.dask.get("chunk_size", cfg.patch_size)
                 logits = process_image_with_dask_chunks(
                     image=image,
                     model=model,
                     device=device,
-                    patch_size=cfg.patch_size,
+                    patch_size=chunk_size,
                     overlap=cfg.overlap,
                     batch_size=cfg.batch_size,
                     sigma_scale=cfg.sigma_scale,

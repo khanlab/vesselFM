@@ -18,3 +18,4 @@ nibabel
 gpustat
 dask>=2024.11.2,<2025
 distributed>=2024.11.2,<2025
+psutil

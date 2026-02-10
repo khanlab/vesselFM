@@ -45,6 +45,10 @@ def build_overrides(args) -> list[str]:
     if args.apply_postprocessing:
         overrides.append("post.apply=True")
     
+    if args.chunk_size is not None:
+        # Hydra override syntax for lists
+        overrides.append(f"dask.chunk_size=[{args.chunk_size[0]},{args.chunk_size[1]},{args.chunk_size[2]}]")
+    
     # Dask-related overrides
     if args.disable_dask:
         overrides.append("dask.enabled=False")
@@ -113,6 +117,7 @@ def main():
     parser.add_argument("--threshold", type=float, default=None, help="Segmentation threshold (0.0-1.0)")
     parser.add_argument("--tta-scales", type=float, nargs="+", default=None, help="TTA scales, e.g. 0.5 1.0 1.5")
     parser.add_argument("--apply-postprocessing", action="store_true", help="Apply post-processing")
+    parser.add_argument("--chunk-size", type=int, nargs=3, default=None, help="Chunk size for Dask chunking mode D H W (e.g., 500 500 500)")
     
     # Dask-related arguments
     parser.add_argument("--disable-dask", action="store_true", help="Disable Dask parallel processing")

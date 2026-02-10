@@ -228,10 +228,18 @@ def process_image_with_dask_chunks(
     Returns:
         Output logits tensor
     """
+    import psutil
+    import os
+    
+    # Get current process for memory tracking
+    process = psutil.Process(os.getpid())
+    initial_memory_mb = process.memory_info().rss / 1024 / 1024
+    
     image_shape = image.shape
     
     # Compute patch coordinates
     coords_list = compute_patch_coords(image_shape, patch_size, overlap)
+    logger.info(f"Image shape: {image_shape[2:]}, Chunk size: {patch_size}, Number of chunks: {len(coords_list)}")
     logger.debug(f"Generated {len(coords_list)} patches for image of shape {image_shape}")
     
     if use_dask and len(coords_list) > 1:
@@ -285,5 +293,10 @@ def process_image_with_dask_chunks(
     
     # Stitch patches back together
     output = stitch_patches(patch_results, image_shape, patch_size, sigma_scale)
+    
+    # Report peak memory usage
+    peak_memory_mb = process.memory_info().rss / 1024 / 1024
+    memory_used_mb = peak_memory_mb - initial_memory_mb
+    logger.info(f"Memory usage: Current={peak_memory_mb:.2f} MB, Increase={memory_used_mb:.2f} MB")
     
     return output
