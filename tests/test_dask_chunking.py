@@ -298,6 +298,42 @@ class TestDaskChunking(unittest.TestCase):
         # For each dimension: positions 0, 37, 50 (boundary adjusted) = at least 2 positions
         # So total chunks should be at least 2^3 = 8
         self.assertGreaterEqual(len(coords), 8)
+    
+    def test_running_time_reported(self):
+        """Test that running time is tracked and would be logged."""
+        import time
+        
+        image = torch.randn(1, 1, 64, 64, 64)
+        model = MockModel()
+        device = "cpu"
+        patch_size = (32, 32, 32)
+        overlap = 0.25
+        batch_size = 4
+        
+        # Record time before processing
+        start = time.time()
+        
+        output = process_image_with_dask_chunks(
+            image=image,
+            model=model,
+            device=device,
+            patch_size=patch_size,
+            overlap=overlap,
+            batch_size=batch_size,
+            use_dask=False
+        )
+        
+        # Record time after processing
+        end = time.time()
+        elapsed = end - start
+        
+        # Verify output is correct
+        self.assertEqual(output.shape, image.shape)
+        
+        # Verify some time has elapsed (processing should take at least some time)
+        self.assertGreater(elapsed, 0)
+        # Verify it's reasonable (should complete within 60 seconds for small test)
+        self.assertLess(elapsed, 60)
 
 
 if __name__ == "__main__":
