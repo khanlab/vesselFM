@@ -2,6 +2,7 @@
 
 import logging
 import os
+import time
 from typing import Tuple, List, Dict, Any
 import numpy as np
 import torch
@@ -230,6 +231,9 @@ def process_image_with_dask_chunks(
     Returns:
         Output logits tensor
     """
+    # Start timing
+    start_time = time.time()
+    
     # Get current process for memory tracking
     process = psutil.Process(os.getpid())
     initial_memory_mb = process.memory_info().rss / 1024 / 1024
@@ -293,9 +297,13 @@ def process_image_with_dask_chunks(
     # Stitch patches back together
     output = stitch_patches(patch_results, image_shape, patch_size, sigma_scale)
     
-    # Report memory usage at end of processing
+    # Calculate elapsed time
+    elapsed_time = time.time() - start_time
+    
+    # Report memory usage and running time
     final_memory_mb = process.memory_info().rss / 1024 / 1024
     memory_used_mb = final_memory_mb - initial_memory_mb
     logger.info(f"Memory usage: Current={final_memory_mb:.2f} MB, Increase={memory_used_mb:.2f} MB")
+    logger.info(f"Processing time: {elapsed_time:.2f} seconds")
     
     return output
