@@ -54,6 +54,11 @@ def build_overrides(args) -> list[str]:
     
     if args.dask_threads_per_worker is not None:
         overrides.append(f"dask.threads_per_worker={args.dask_threads_per_worker}")
+    
+    if args.enable_dask_chunking:
+        overrides.append("dask.chunk_images=True")
+    elif args.disable_dask_chunking:
+        overrides.append("dask.chunk_images=False")
 
     return overrides
 
@@ -113,6 +118,13 @@ def main():
     parser.add_argument("--disable-dask", action="store_true", help="Disable Dask parallel processing")
     parser.add_argument("--dask-workers", type=int, default=None, help="Number of Dask workers (default: auto-detect)")
     parser.add_argument("--dask-threads-per-worker", type=int, default=None, help="Threads per Dask worker (default: 2)")
+    
+    # Dask chunking control (mutually exclusive)
+    chunking_group = parser.add_mutually_exclusive_group()
+    chunking_group.add_argument("--enable-dask-chunking", action="store_true", 
+                                help="Enable Dask-based chunking for individual images (default in config)")
+    chunking_group.add_argument("--disable-dask-chunking", action="store_true", 
+                                help="Disable Dask-based chunking, use traditional sliding window")
 
     args = parser.parse_args()
 

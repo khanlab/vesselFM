@@ -5,6 +5,29 @@ from pathlib import Path
 from argparse import Namespace
 
 
+def create_test_args(**overrides):
+    """Helper function to create test arguments with all required fields."""
+    defaults = {
+        'input_folder': Path("/test/input"),
+        'output_folder': Path("/test/output"),
+        'mask_folder': None,
+        'device': "cpu",
+        'batch_size': None,
+        'patch_size': None,
+        'overlap': None,
+        'threshold': None,
+        'tta_scales': None,
+        'apply_postprocessing': False,
+        'disable_dask': False,
+        'dask_workers': None,
+        'dask_threads_per_worker': None,
+        'enable_dask_chunking': False,
+        'disable_dask_chunking': False,
+    }
+    defaults.update(overrides)
+    return Namespace(**defaults)
+
+
 class TestDaskConfig(unittest.TestCase):
     """Test cases for Dask configuration."""
     
@@ -12,21 +35,7 @@ class TestDaskConfig(unittest.TestCase):
         """Test that Dask configuration is present in the default config."""
         from vesselfm.cli import create_config
         
-        args = Namespace(
-            input_folder=Path("/test/input"),
-            output_folder=Path("/test/output"),
-            mask_folder=None,
-            device="cpu",
-            batch_size=None,
-            patch_size=None,
-            overlap=None,
-            threshold=None,
-            tta_scales=None,
-            apply_postprocessing=False,
-            disable_dask=False,
-            dask_workers=None,
-            dask_threads_per_worker=None
-        )
+        args = create_test_args()
         
         cfg = create_config(args)
         
@@ -38,22 +47,7 @@ class TestDaskConfig(unittest.TestCase):
         """Test that Dask configuration has correct default values."""
         from vesselfm.cli import create_config
         
-        args = Namespace(
-            input_folder=Path("/test/input"),
-            output_folder=Path("/test/output"),
-            mask_folder=None,
-            device="cpu",
-            batch_size=None,
-            patch_size=None,
-            overlap=None,
-            threshold=None,
-            tta_scales=None,
-            apply_postprocessing=False,
-            disable_dask=False,
-            dask_workers=None,
-            dask_threads_per_worker=None
-        )
-        
+        args = create_test_args()
         cfg = create_config(args)
         
         # Check default values
@@ -61,26 +55,14 @@ class TestDaskConfig(unittest.TestCase):
         self.assertIsNone(cfg.dask.n_workers)
         self.assertEqual(cfg.dask.threads_per_worker, 2)
         self.assertEqual(cfg.dask.memory_limit, "auto")
+        # Check new chunk_images default
+        self.assertTrue(cfg.dask.chunk_images)
     
     def test_dask_disabled_via_cli(self):
         """Test that Dask can be disabled via CLI argument."""
         from vesselfm.cli import create_config
         
-        args = Namespace(
-            input_folder=Path("/test/input"),
-            output_folder=Path("/test/output"),
-            mask_folder=None,
-            device="cpu",
-            batch_size=None,
-            patch_size=None,
-            overlap=None,
-            threshold=None,
-            tta_scales=None,
-            apply_postprocessing=False,
-            disable_dask=True,
-            dask_workers=None,
-            dask_threads_per_worker=None
-        )
+        args = create_test_args(disable_dask=True)
         
         cfg = create_config(args)
         
@@ -91,18 +73,7 @@ class TestDaskConfig(unittest.TestCase):
         """Test that Dask workers can be overridden via CLI."""
         from vesselfm.cli import create_config
         
-        args = Namespace(
-            input_folder=Path("/test/input"),
-            output_folder=Path("/test/output"),
-            mask_folder=None,
-            device="cpu",
-            batch_size=None,
-            patch_size=None,
-            overlap=None,
-            threshold=None,
-            tta_scales=None,
-            apply_postprocessing=False,
-            disable_dask=False,
+        args = create_test_args(
             dask_workers=4,
             dask_threads_per_worker=3
         )

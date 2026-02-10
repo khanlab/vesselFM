@@ -18,6 +18,7 @@ from skimage.exposure import equalize_hist
 from vesselfm.seg.utils.data import generate_transforms
 from vesselfm.seg.utils.io import determine_reader_writer
 from vesselfm.seg.utils.evaluation import Evaluator, calculate_mean_metrics
+from vesselfm.seg.utils.dask_patching import process_image_with_dask_chunks
 
 
 warnings.filterwarnings("ignore")
@@ -74,7 +75,7 @@ def process_image(image_path, image_data, mask_data, cfg, model, transforms, sav
         model: The neural network model
         transforms: Pre-processing transforms
         save_writer: Writer for saving predictions
-        inferer: Sliding window inferer
+        inferer: Sliding window inferer (can be None if using Dask chunking)
         file_ending: File extension for output files
         device: Device to use for computation
         output_folder: Path to output folder
@@ -83,6 +84,10 @@ def process_image(image_path, image_data, mask_data, cfg, model, transforms, sav
         dict: Dictionary containing image name and metrics (if mask_data is provided)
     """
     image_name = image_path.name.split('.')[0]
+    
+    # Check if we should use Dask-based chunking for this image
+    # Note: Chunking requires both Dask to be enabled and chunk_images to be True
+    use_dask_chunks = cfg.dask.get("enabled", True) and cfg.dask.get("chunk_images", False)
     
     preds = []  # average over test time augmentations
     with torch.no_grad():
@@ -102,7 +107,26 @@ def process_image(image_path, image_data, mask_data, cfg, model, transforms, sav
 
             original_shape = image.shape
             image = resample(image, factor=scale)
-            logits = inferer(image, model)
+            
+            # Choose inference method based on configuration
+            if use_dask_chunks:
+                # Use Dask-based parallel chunking
+                logger.debug(f"Using Dask-based chunking for {image_name}")
+                logits = process_image_with_dask_chunks(
+                    image=image,
+                    model=model,
+                    device=device,
+                    patch_size=cfg.patch_size,
+                    overlap=cfg.overlap,
+                    batch_size=cfg.batch_size,
+                    sigma_scale=cfg.sigma_scale,
+                    use_dask=True,
+                    n_workers=cfg.dask.get("n_workers", None)
+                )
+            else:
+                # Use traditional sliding window inferer
+                logits = inferer(image, model)
+            
             logits = resample(logits, target_shape=original_shape)
             preds.append(logits.cpu().squeeze())
 

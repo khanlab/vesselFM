@@ -28,11 +28,13 @@ padding_mode: "constant"
 seed: 404
 
 # dask configuration
-# Dask is used for parallel image loading and preprocessing with thread-based parallelism.
-# The n_workers setting determines the number of parallel tasks for image loading.
+# Dask can be used for two types of parallelism:
+# 1. Parallel loading of multiple images (enabled by default)
+# 2. Parallel processing of chunks within a single image (controlled by chunk_images)
 dask:
   enabled: true
   n_workers: null  # null means auto-detect based on available CPUs
+  chunk_images: true  # Enable Dask-based chunking for individual images
   # Note: The following settings are placeholders for future distributed cluster support
   # and currently have no effect with the default thread-based scheduler.
   threads_per_worker: 2  # Not yet implemented - reserved for future distributed cluster

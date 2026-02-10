@@ -27,18 +27,26 @@ Or, if you have installed the package:
 
     vesselfm-infer --input-folder /path/to/images --output-folder /path/to/output
 
-**Dask Integration for Large Datasets**: VesselFM now includes built-in Dask support for parallel processing of large image datasets. Dask is enabled by default and will automatically parallelize image loading and preprocessing operations. This is particularly useful when processing many images or large volumetric data.
+**Dask Integration for Large Datasets**: VesselFM now includes built-in Dask support for parallel processing of large image datasets. Dask provides two types of parallelism:
+
+1. **Multi-image parallelism** (default): Automatically parallelizes loading and preprocessing of multiple images
+2. **Chunk-level parallelism** (new): Splits individual large images into chunks, processes them in parallel, and merges results with Gaussian blending
 
 To control Dask behavior:
 
-    # Disable Dask (use sequential processing)
+    # Disable Dask completely (use sequential processing)
     python -m vesselfm.cli --input-folder /path/to/images --output-folder /path/to/output --disable-dask
 
     # Specify number of workers (default: auto-detect based on CPU cores)
     python -m vesselfm.cli --input-folder /path/to/images --output-folder /path/to/output --dask-workers 4
 
-    # Specify threads per worker (default: 2)
-    python -m vesselfm.cli --input-folder /path/to/images --output-folder /path/to/output --dask-threads-per-worker 3
+    # Enable chunk-level parallelism for individual images (processes image chunks in parallel)
+    python -m vesselfm.cli --input-folder /path/to/images --output-folder /path/to/output --enable-dask-chunking
+
+    # Disable chunk-level parallelism (use traditional sliding window)
+    python -m vesselfm.cli --input-folder /path/to/images --output-folder /path/to/output --disable-dask-chunking
+
+**Note**: Chunk-level parallelism is enabled by default in the configuration and is particularly beneficial for very large 3D volumes (>500MB).
 
 ### Advanced Usage (Config File)
 For more control, adjust the [config file](vesselfm/seg/configs/inference.yaml) (see `#TODO`) and run:
