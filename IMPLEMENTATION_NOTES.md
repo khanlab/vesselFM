@@ -119,15 +119,79 @@ The implementation is fully backward compatible:
 - No external dependencies added (uses existing Dask installation)
 - No sensitive data exposure
 
+## Multi-GPU Processing (New)
+
+### Overview
+
+Multi-GPU processing enables distribution of image chunks across multiple GPUs for accelerated inference. This is particularly beneficial for processing single large 3D medical images.
+
+### Key Features
+
+1. **Automatic GPU Detection**: Automatically detects available GPUs and distributes work accordingly
+2. **Flexible GPU Selection**: Users can specify which GPUs to use via CLI or configuration
+3. **Round-Robin Distribution**: Chunks are distributed to GPUs in a round-robin fashion for balanced workload
+4. **Seamless Integration**: Works with existing Dask chunking infrastructure
+
+### Usage
+
+```bash
+# Enable multi-GPU processing (uses all available GPUs)
+python -m vesselfm.cli --input-folder /path/to/images --output-folder /path/to/output --enable-multi-gpu
+
+# Specify which GPUs to use
+python -m vesselfm.cli --input-folder /path/to/images --output-folder /path/to/output --enable-multi-gpu --gpu-ids 0 1 2
+```
+
+### Implementation Details
+
+- **GPU Worker Setup**: `setup_gpu_workers()` function detects and configures GPU devices
+- **Patch Processing**: Each patch is assigned to a GPU in round-robin fashion
+- **Distributed Scheduler**: Optional Dask distributed scheduler for better GPU isolation
+- **Automatic Fallback**: Falls back to single GPU if only one is available
+
+## OME.ZARR Format Support (New)
+
+### Overview
+
+OME.ZARR is a cloud-optimized format for storing large multidimensional imaging data. It provides efficient storage and access patterns for very large images.
+
+### Key Features
+
+1. **Lazy Loading**: Only loads data when needed, reducing memory usage
+2. **Multi-resolution**: Supports pyramid levels for efficient viewing at different scales
+3. **Metadata Preservation**: Stores physical spacing, units, and other metadata
+4. **Chunked Storage**: Data is stored in chunks for efficient I/O
+
+### Implementation Details
+
+- **Reader**: `OmeZarrReaderWriter.read_images()` supports reading 3D, 4D, and 5D OME.ZARR arrays
+- **Writer**: `OmeZarrReaderWriter.write_seg()` writes segmentations with proper metadata and chunking
+- **Automatic Detection**: File format is automatically detected by extension (.zarr or .ome.zarr)
+- **Metadata Handling**: Preserves physical spacing and coordinate transformations
+
+### Usage
+
+```bash
+# Process OME.ZARR files (automatically detected)
+python -m vesselfm.cli --input-folder /path/to/zarr/files --output-folder /path/to/output
+```
+
+### Dependencies
+
+Requires: `ome-zarr>=0.9.0` and `zarr>=2.16.0`
+
 ## Future Enhancements
 
 Potential future improvements:
-- Multi-GPU support for chunk-level parallelism
+- ~~Multi-GPU support for chunk-level parallelism~~ (Implemented)
 - Adaptive chunk size based on available memory
 - Distributed cluster support for very large datasets
+- Enhanced multi-GPU scheduling algorithms
+- Support for more cloud-optimized formats
 
 ## References
 
 - Original SlidingWindowInfererAdapt from MONAI
 - Dask documentation: https://docs.dask.org/
+- OME-ZARR specification: https://ngff.openmicroscopy.org/
 - Gaussian blending for seamless tiling

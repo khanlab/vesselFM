@@ -19,3 +19,5 @@ gpustat
 dask>=2024.11.2,<2025
 distributed>=2024.11.2,<2025
 psutil
+ome-zarr>=0.9.0
+zarr>=2.16.0
