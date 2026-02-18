@@ -391,10 +391,7 @@ def process_image_with_dask_chunks(
             
             # Process in parallel
             with ProgressBar():
-                if dask_client:
-                    patch_results = bag.map(process_patch_multi_gpu).compute()
-                else:
-                    patch_results = bag.map(process_patch_multi_gpu).compute()
+                patch_results = bag.map(process_patch_multi_gpu).compute()
                     
         else:
             # Single-GPU parallel processing
@@ -449,7 +446,7 @@ def process_image_with_dask_chunks(
     if dask_client is not None:
         try:
             dask_client.close()
-        except:
+        except Exception:
             pass
     
     # Stitch patches back together

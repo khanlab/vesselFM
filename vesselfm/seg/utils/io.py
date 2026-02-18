@@ -494,7 +494,7 @@ class OmeZarrReaderWriter(BaseReaderWriter):
         # Use first metadata (all should be consistent)
         final_metadata = metadata_list[0]
         
-        # Reorder spacing to match expected format (z, x, y -> z, y, x is already correct)
+        # Create metadata dictionary with spacing and other info
         meta_data = {"spacing": final_metadata["spacing"], "other": final_metadata}
         
         logger.debug(f"Loaded OME-ZARR data with shape: {final_data.shape}")
