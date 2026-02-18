@@ -442,21 +442,39 @@ class OmeZarrReaderWriter(BaseReaderWriter):
             # Try to get spacing from OME metadata
             spacing = [1.0, 1.0, 1.0]  # Default spacing
             try:
-                # OME-ZARR stores axes metadata
-                if hasattr(node, 'metadata') and 'axes' in node.metadata:
-                    axes = node.metadata['axes']
-                    # Look for spatial axes and their units
-                    # Note: OME-ZARR uses (t, c, z, y, x) order
-                    
-                # Try to get coordinate transformations for physical spacing
-                if hasattr(node, 'metadata') and 'coordinateTransformations' in node.metadata:
-                    transforms = node.metadata['coordinateTransformations']
-                    for transform in transforms:
-                        if transform.get('type') == 'scale':
-                            scale = transform.get('scale', [])
-                            # Extract z, y, x spacing (last 3 dimensions)
-                            if len(scale) >= 3:
-                                spacing = scale[-3:]  # z, y, x
+                # OME-ZARR stores coordinate transformations in the metadata
+                # They're stored per dataset/resolution level
+                if hasattr(node, 'metadata'):
+                    # Check if there are datasets with coordinate transformations
+                    if 'datasets' in node.metadata:
+                        datasets = node.metadata['datasets']
+                        if datasets and len(datasets) > 0:
+                            # Get the first (highest resolution) dataset
+                            first_dataset = datasets[0]
+                            if 'coordinateTransformations' in first_dataset:
+                                transforms = first_dataset['coordinateTransformations']
+                                for transform in transforms:
+                                    if transform.get('type') == 'scale':
+                                        scale = transform.get('scale', [])
+                                        # Extract z, y, x spacing (last 3 dimensions)
+                                        if len(scale) >= 3:
+                                            spacing = scale[-3:]  # z, y, x
+                    # Fall back to checking coordinateTransformations directly
+                    elif 'coordinateTransformations' in node.metadata:
+                        transforms = node.metadata['coordinateTransformations']
+                        if isinstance(transforms, list) and len(transforms) > 0:
+                            # If it's a list of lists (per resolution), get first
+                            first_transform = transforms[0]
+                            if isinstance(first_transform, list) and len(first_transform) > 0:
+                                for transform in first_transform:
+                                    if isinstance(transform, dict) and transform.get('type') == 'scale':
+                                        scale = transform.get('scale', [])
+                                        if len(scale) >= 3:
+                                            spacing = scale[-3:]
+                            elif isinstance(first_transform, dict) and first_transform.get('type') == 'scale':
+                                scale = first_transform.get('scale', [])
+                                if len(scale) >= 3:
+                                    spacing = scale[-3:]
                             
             except Exception as e:
                 logger.warning(f"Could not extract spacing from OME-ZARR metadata: {e}")
@@ -550,6 +568,9 @@ class OmeZarrReaderWriter(BaseReaderWriter):
         if store is None:
             raise ValueError(f"Could not create OME-ZARR store at: {seg_fname}")
         
+        # Create the root group from the store
+        root = zarr.group(store=store.store)
+        
         # Write the image with pyramid levels (multi-resolution)
         # This is particularly useful for large images
         logger.info(f"Writing OME-ZARR segmentation to {seg_fname}")
@@ -557,11 +578,12 @@ class OmeZarrReaderWriter(BaseReaderWriter):
         
         write_image(
             image=data_5d,
-            group=store,
+            group=root,
             axes=axes,
             coordinate_transformations=[coordinate_transformations],
             storage_options=dict(chunks=(1, 1, 64, 64, 64)),  # Chunk size for efficient I/O
-            compute=True  # Compute immediately (not lazy)
+            compute=True,  # Compute immediately (not lazy)
+            scaler=None  # Disable multi-resolution pyramid for simplicity
         )
         
         logger.info(f"Successfully wrote OME-ZARR segmentation")
