@@ -113,6 +113,11 @@ def process_image(image_path, image_data, mask_data, cfg, model, transforms, sav
                 # Use Dask-based parallel chunking
                 logger.debug(f"Using Dask-based chunking for {image_name}")
                 chunk_size = cfg.dask.get("chunk_size", cfg.patch_size)
+                
+                # Get multi-GPU settings
+                use_multi_gpu = cfg.dask.get("multi_gpu", False)
+                gpu_ids = cfg.dask.get("gpu_ids", None)
+                
                 logits = process_image_with_dask_chunks(
                     image=image,
                     model=model,
@@ -122,7 +127,9 @@ def process_image(image_path, image_data, mask_data, cfg, model, transforms, sav
                     batch_size=cfg.batch_size,
                     sigma_scale=cfg.sigma_scale,
                     use_dask=True,
-                    n_workers=cfg.dask.get("n_workers", None)
+                    n_workers=cfg.dask.get("n_workers", None),
+                    gpu_ids=gpu_ids,
+                    use_multi_gpu=use_multi_gpu
                 )
             else:
                 # Use traditional sliding window inferer

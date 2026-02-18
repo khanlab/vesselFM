@@ -3,7 +3,7 @@
 import logging
 import os
 import time
-from typing import Tuple, List, Dict, Any
+from typing import Tuple, List, Dict, Any, Optional
 import numpy as np
 import torch
 import torch.nn.functional as F
@@ -14,6 +14,76 @@ logger = logging.getLogger(__name__)
 # Constants
 DEFAULT_CPU_COUNT = 4  # Fallback when os.cpu_count() returns None
 EPSILON = 1e-8  # Small value to prevent division by zero in normalization
+
+
+def get_available_gpus() -> List[str]:
+    """
+    Get list of available GPU devices.
+    
+    Returns:
+        List of GPU device strings (e.g., ['cuda:0', 'cuda:1'])
+    """
+    if not torch.cuda.is_available():
+        logger.warning("CUDA is not available, falling back to CPU")
+        return []
+    
+    n_gpus = torch.cuda.device_count()
+    logger.info(f"Found {n_gpus} GPU(s) available")
+    return [f"cuda:{i}" for i in range(n_gpus)]
+
+
+def setup_gpu_workers(
+    gpu_ids: Optional[List[int]] = None,
+    use_distributed: bool = False
+) -> Tuple[List[str], Optional[Any]]:
+    """
+    Setup GPU workers for multi-GPU processing.
+    
+    Args:
+        gpu_ids: List of GPU IDs to use (None = use all available GPUs)
+        use_distributed: Whether to use Dask distributed scheduler
+        
+    Returns:
+        Tuple of (list of device strings, dask client or None)
+    """
+    available_gpus = get_available_gpus()
+    
+    if not available_gpus:
+        logger.info("No GPUs available, using CPU")
+        return ["cpu"], None
+    
+    # Determine which GPUs to use
+    if gpu_ids is not None:
+        devices = [f"cuda:{gpu_id}" for gpu_id in gpu_ids if gpu_id < len(available_gpus)]
+        if not devices:
+            logger.warning(f"Specified GPU IDs {gpu_ids} are not available, using all GPUs")
+            devices = available_gpus
+    else:
+        devices = available_gpus
+    
+    logger.info(f"Using GPUs: {devices}")
+    
+    # Setup distributed scheduler if requested
+    client = None
+    if use_distributed and len(devices) > 1:
+        try:
+            from dask.distributed import Client, LocalCluster
+            
+            # Create a local cluster with one worker per GPU
+            logger.info(f"Setting up Dask distributed cluster with {len(devices)} GPU workers")
+            cluster = LocalCluster(
+                n_workers=len(devices),
+                threads_per_worker=2,
+                processes=True,  # Use processes for better GPU isolation
+                memory_limit='auto'
+            )
+            client = Client(cluster)
+            logger.info(f"Dask cluster dashboard available at: {client.dashboard_link}")
+        except Exception as e:
+            logger.warning(f"Could not setup distributed scheduler: {e}. Using threaded scheduler.")
+            client = None
+    
+    return devices, client
 
 
 def compute_patch_coords(
@@ -203,6 +273,36 @@ def infer_patch_batch(
         return logits.cpu()
 
 
+def process_patch_on_gpu(
+    coords: Tuple[int, int, int, int, int, int],
+    image: torch.Tensor,
+    model: torch.nn.Module,
+    device: str
+) -> Dict[str, Any]:
+    """
+    Process a single patch on a specific GPU.
+    
+    This function is designed to be called by Dask workers, with each worker
+    assigned to a specific GPU device.
+    
+    Args:
+        coords: Patch coordinates (start_d, end_d, start_h, end_h, start_w, end_w)
+        image: Input image tensor (shared across workers)
+        model: PyTorch model (will be moved to specified device)
+        device: Device to run inference on (e.g., 'cuda:0', 'cuda:1')
+        
+    Returns:
+        Dictionary with 'logits' and 'coords'
+    """
+    # Extract the patch
+    patch = extract_patch(image, coords)
+    
+    # Run inference on the specified device
+    logits = infer_patch_batch(patch, model, device)
+    
+    return {'logits': logits.squeeze(0).squeeze(0), 'coords': coords}
+
+
 def process_image_with_dask_chunks(
     image: torch.Tensor,
     model: torch.nn.Module,
@@ -212,21 +312,29 @@ def process_image_with_dask_chunks(
     batch_size: int,
     sigma_scale: float = 0.125,
     use_dask: bool = True,
-    n_workers: int = None
+    n_workers: int = None,
+    gpu_ids: Optional[List[int]] = None,
+    use_multi_gpu: bool = False
 ) -> torch.Tensor:
     """
     Process an image using Dask-based chunking for parallel inference.
     
+    Supports both single-GPU and multi-GPU processing:
+    - Single GPU: Patches are processed in parallel on one GPU
+    - Multi-GPU: Patches are distributed across multiple GPUs for parallel processing
+    
     Args:
         image: Input image tensor (1, 1, D, H, W)
         model: PyTorch model
-        device: Device for inference
+        device: Device for inference (used if multi-GPU is disabled)
         patch_size: Size of each patch (D, H, W)
         overlap: Overlap ratio between patches
         batch_size: Batch size for patch processing
         sigma_scale: Gaussian blending scale
         use_dask: Whether to use Dask for parallel processing
         n_workers: Number of Dask workers (None = auto)
+        gpu_ids: List of GPU IDs to use for multi-GPU (None = use all available)
+        use_multi_gpu: Whether to distribute work across multiple GPUs
         
     Returns:
         Output logits tensor
@@ -246,33 +354,76 @@ def process_image_with_dask_chunks(
     logger.info(f"Image shape: {image_shape[2:]}, Chunk size: {patch_size}, Number of chunks: {len(coords_list)}")
     logger.debug(f"Generated {len(coords_list)} patches for image of shape {image_shape}")
     
-    if use_dask and len(coords_list) > 1:
-        logger.info(f"Processing {len(coords_list)} patches in parallel with Dask")
-        import dask
-        import dask.bag as db
-        from dask.diagnostics import ProgressBar
-        
-        # Configure Dask
-        dask.config.set(scheduler='threads')
-        
-        # Determine number of partitions
-        if n_workers:
-            npartitions = min(len(coords_list), n_workers)
+    # Setup GPUs if multi-GPU is requested
+    devices = [device]
+    dask_client = None
+    
+    if use_multi_gpu and use_dask:
+        devices, dask_client = setup_gpu_workers(gpu_ids, use_distributed=True)
+        if len(devices) > 1:
+            logger.info(f"Multi-GPU processing enabled with {len(devices)} GPUs: {devices}")
         else:
-            cpu_count = os.cpu_count() or DEFAULT_CPU_COUNT
-            npartitions = min(len(coords_list), cpu_count)
-        
-        # Create function for processing a single patch
-        def process_single_patch(coords):
-            patch = extract_patch(image, coords)
-            # Process in batches of 1 since we're parallelizing across patches
-            logits = infer_patch_batch(patch, model, device)
-            return {'logits': logits.squeeze(0).squeeze(0), 'coords': coords}
-        
-        # Create Dask bag and process in parallel
-        bag = db.from_sequence(coords_list, npartitions=npartitions)
-        with ProgressBar():
-            patch_results = bag.map(process_single_patch).compute()
+            logger.info("Only one GPU available or multi-GPU setup failed, using single GPU")
+            use_multi_gpu = False
+    
+    if use_dask and len(coords_list) > 1:
+        if use_multi_gpu and len(devices) > 1:
+            # Multi-GPU parallel processing with Dask
+            logger.info(f"Processing {len(coords_list)} patches in parallel across {len(devices)} GPUs")
+            import dask
+            import dask.bag as db
+            from dask.diagnostics import ProgressBar
+            
+            # If using distributed scheduler, don't override
+            if dask_client is None:
+                dask.config.set(scheduler='threads')
+            
+            # Create a function that assigns patches to GPUs in round-robin fashion
+            def process_patch_multi_gpu(args):
+                idx, coords = args
+                # Assign GPU in round-robin fashion
+                gpu_device = devices[idx % len(devices)]
+                return process_patch_on_gpu(coords, image, model, gpu_device)
+            
+            # Create Dask bag with enumerated coordinates
+            npartitions = min(len(coords_list), len(devices) * 2)  # 2 tasks per GPU
+            bag = db.from_sequence(list(enumerate(coords_list)), npartitions=npartitions)
+            
+            # Process in parallel
+            with ProgressBar():
+                if dask_client:
+                    patch_results = bag.map(process_patch_multi_gpu).compute()
+                else:
+                    patch_results = bag.map(process_patch_multi_gpu).compute()
+                    
+        else:
+            # Single-GPU parallel processing
+            logger.info(f"Processing {len(coords_list)} patches in parallel with Dask")
+            import dask
+            import dask.bag as db
+            from dask.diagnostics import ProgressBar
+            
+            # Configure Dask
+            dask.config.set(scheduler='threads')
+            
+            # Determine number of partitions
+            if n_workers:
+                npartitions = min(len(coords_list), n_workers)
+            else:
+                cpu_count = os.cpu_count() or DEFAULT_CPU_COUNT
+                npartitions = min(len(coords_list), cpu_count)
+            
+            # Create function for processing a single patch
+            def process_single_patch(coords):
+                patch = extract_patch(image, coords)
+                # Process in batches of 1 since we're parallelizing across patches
+                logits = infer_patch_batch(patch, model, device)
+                return {'logits': logits.squeeze(0).squeeze(0), 'coords': coords}
+            
+            # Create Dask bag and process in parallel
+            bag = db.from_sequence(coords_list, npartitions=npartitions)
+            with ProgressBar():
+                patch_results = bag.map(process_single_patch).compute()
     else:
         # Sequential processing with batching
         if use_dask:
@@ -293,6 +444,13 @@ def process_image_with_dask_chunks(
                     'logits': logits_batch[j],
                     'coords': coords
                 })
+    
+    # Clean up Dask client if created
+    if dask_client is not None:
+        try:
+            dask_client.close()
+        except:
+            pass
     
     # Stitch patches back together
     output = stitch_patches(patch_results, image_shape, patch_size, sigma_scale)

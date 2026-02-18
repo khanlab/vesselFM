@@ -63,6 +63,14 @@ def build_overrides(args) -> list[str]:
         overrides.append("dask.chunk_images=True")
     elif args.disable_dask_chunking:
         overrides.append("dask.chunk_images=False")
+    
+    # Multi-GPU related overrides
+    if args.enable_multi_gpu:
+        overrides.append("dask.multi_gpu=True")
+    
+    if args.gpu_ids is not None:
+        gpu_ids_str = ",".join(str(id) for id in args.gpu_ids)
+        overrides.append(f"dask.gpu_ids=[{gpu_ids_str}]")
 
     return overrides
 
@@ -130,6 +138,12 @@ def main():
                                 help="Enable Dask-based chunking for individual images (default in config)")
     chunking_group.add_argument("--disable-dask-chunking", action="store_true", 
                                 help="Disable Dask-based chunking, use traditional sliding window")
+    
+    # Multi-GPU arguments
+    parser.add_argument("--enable-multi-gpu", action="store_true", 
+                       help="Enable multi-GPU processing (distributes chunks across multiple GPUs)")
+    parser.add_argument("--gpu-ids", type=int, nargs="+", default=None,
+                       help="Specific GPU IDs to use (e.g., --gpu-ids 0 1 2). Default: use all available GPUs")
 
     args = parser.parse_args()
 

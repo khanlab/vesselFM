@@ -9,6 +9,15 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 import numpy as np
 import SimpleITK as sitk
 
+try:
+    import zarr
+    import ome_zarr
+    from ome_zarr.io import parse_url
+    from ome_zarr.reader import Reader
+    ZARR_AVAILABLE = True
+except ImportError:
+    ZARR_AVAILABLE = False
+
 logger = logging.getLogger(__name__)
 
 
@@ -352,12 +361,222 @@ class SimpleITKReaderWriter(BaseReaderWriter):
         sitk.WriteImage(seg, seg_fname, compression)
 
 
+class OmeZarrReaderWriter(BaseReaderWriter):
+    """Reader/Writer for OME-ZARR format.
+    
+    OME-ZARR is a cloud-optimized format for storing large multidimensional
+    imaging data. It's particularly well-suited for very large images that
+    don't fit in memory.
+    """
+    supported_file_formats = ["zarr", "ome.zarr"]
+
+    def __init__(self):
+        super().__init__()
+        if not ZARR_AVAILABLE:
+            raise ImportError(
+                "ome-zarr and zarr packages are required for OME-ZARR support. "
+                "Install them with: pip install ome-zarr zarr"
+            )
+
+    def read_images(
+        self, image_fnames: Union[str, list[str]]
+    ) -> Tuple[np.ndarray, Dict[str, Any]]:
+        """
+        Read images from OME-ZARR format.
+        
+        Args:
+            image_fnames: Path to OME-ZARR directory or list of paths
+            
+        Returns:
+            Tuple of numpy array and metadata dictionary
+        """
+        if isinstance(image_fnames, str):
+            image_fnames = [image_fnames]
+            
+        image_data = []
+        metadata_list = []
+        
+        for image_fname in image_fnames:
+            # Parse the OME-ZARR file
+            store = parse_url(image_fname, mode="r")
+            if store is None:
+                raise ValueError(f"Could not parse OME-ZARR file: {image_fname}")
+                
+            reader = Reader(store)
+            
+            # Get the first node (typically the image)
+            nodes = list(reader())
+            if not nodes:
+                raise ValueError(f"No data found in OME-ZARR file: {image_fname}")
+                
+            node = nodes[0]
+            
+            # Get the highest resolution level (level 0)
+            # OME-ZARR stores data with shape (t, c, z, y, x) or (c, z, y, x)
+            data = node.data[0] if hasattr(node.data, '__getitem__') else node.data
+            
+            # Load the array (lazy loading with zarr)
+            # For medical imaging, we typically want a single channel 3D volume
+            if data.ndim == 5:  # (t, c, z, y, x)
+                # Take first timepoint and first channel
+                array = np.array(data[0, 0, :, :, :])
+            elif data.ndim == 4:  # (c, z, y, x)
+                # Take first channel
+                array = np.array(data[0, :, :, :])
+            elif data.ndim == 3:  # (z, y, x)
+                array = np.array(data)
+            else:
+                raise ValueError(
+                    f"Unexpected data shape {data.shape} in OME-ZARR file. "
+                    f"Expected 3D, 4D, or 5D array."
+                )
+            
+            if array.ndim != 3:
+                raise RuntimeError(
+                    f"Image {image_fname} has dimension {array.ndim}, expected 3"
+                )
+                
+            image_data.append(array)
+            
+            # Extract metadata
+            # Try to get spacing from OME metadata
+            spacing = [1.0, 1.0, 1.0]  # Default spacing
+            try:
+                # OME-ZARR stores axes metadata
+                if hasattr(node, 'metadata') and 'axes' in node.metadata:
+                    axes = node.metadata['axes']
+                    # Look for spatial axes and their units
+                    # Note: OME-ZARR uses (t, c, z, y, x) order
+                    
+                # Try to get coordinate transformations for physical spacing
+                if hasattr(node, 'metadata') and 'coordinateTransformations' in node.metadata:
+                    transforms = node.metadata['coordinateTransformations']
+                    for transform in transforms:
+                        if transform.get('type') == 'scale':
+                            scale = transform.get('scale', [])
+                            # Extract z, y, x spacing (last 3 dimensions)
+                            if len(scale) >= 3:
+                                spacing = scale[-3:]  # z, y, x
+                            
+            except Exception as e:
+                logger.warning(f"Could not extract spacing from OME-ZARR metadata: {e}")
+            
+            metadata_list.append({
+                "spacing": spacing,
+                "origin": [0.0, 0.0, 0.0],
+                "direction": [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
+            })
+        
+        # Stack multiple images if provided
+        if len(image_data) > 1:
+            final_data = np.vstack(image_data)
+        else:
+            final_data = image_data[0]
+        
+        # Use first metadata (all should be consistent)
+        final_metadata = metadata_list[0]
+        
+        # Reorder spacing to match expected format (z, x, y -> z, y, x is already correct)
+        meta_data = {"spacing": final_metadata["spacing"], "other": final_metadata}
+        
+        logger.debug(f"Loaded OME-ZARR data with shape: {final_data.shape}")
+        logger.debug(f"Spacing: {final_metadata['spacing']}")
+        
+        return final_data, meta_data
+
+    def read_segs(
+        self, seg_fnames: Union[str, list[str]]
+    ) -> Tuple[np.ndarray, Dict[str, Any]]:
+        """
+        Read segmentations from OME-ZARR format.
+        
+        Args:
+            seg_fnames: Path to OME-ZARR directory or list of paths
+            
+        Returns:
+            Tuple of numpy array and metadata dictionary
+        """
+        return self.read_images(seg_fnames)
+
+    def write_seg(
+        self,
+        seg: np.ndarray,
+        seg_fname: str,
+        metadata: Optional[Dict[str, Any]] = None,
+    ):
+        """
+        Write segmentation to OME-ZARR format.
+        
+        Args:
+            seg: Segmentation array (3D)
+            seg_fname: Path to output OME-ZARR directory
+            metadata: Metadata dictionary with spacing, origin, direction
+        """
+        import os
+        from ome_zarr.writer import write_image
+        
+        # Create output directory if it doesn't exist
+        os.makedirs(seg_fname, exist_ok=True)
+        
+        # Prepare the data
+        # OME-ZARR expects data in (t, c, z, y, x) format
+        # Our segmentation is (z, y, x), so we add time and channel dimensions
+        data_5d = seg[np.newaxis, np.newaxis, :, :, :]
+        
+        # Prepare metadata
+        spacing = metadata.get("spacing", [1.0, 1.0, 1.0]) if metadata else [1.0, 1.0, 1.0]
+        
+        # Create coordinate transformation for physical spacing
+        # OME-ZARR uses scale transformation
+        # Format: [t_scale, c_scale, z_scale, y_scale, x_scale]
+        coordinate_transformations = [
+            {
+                "type": "scale",
+                "scale": [1.0, 1.0] + list(spacing)  # t, c, z, y, x
+            }
+        ]
+        
+        # Define axes
+        axes = [
+            {"name": "t", "type": "time"},
+            {"name": "c", "type": "channel"},
+            {"name": "z", "type": "space", "unit": "micrometer"},
+            {"name": "y", "type": "space", "unit": "micrometer"},
+            {"name": "x", "type": "space", "unit": "micrometer"}
+        ]
+        
+        # Create zarr store
+        store = parse_url(seg_fname, mode="w")
+        if store is None:
+            raise ValueError(f"Could not create OME-ZARR store at: {seg_fname}")
+        
+        # Write the image with pyramid levels (multi-resolution)
+        # This is particularly useful for large images
+        logger.info(f"Writing OME-ZARR segmentation to {seg_fname}")
+        logger.debug(f"Data shape: {data_5d.shape}, Spacing: {spacing}")
+        
+        write_image(
+            image=data_5d,
+            group=store,
+            axes=axes,
+            coordinate_transformations=[coordinate_transformations],
+            storage_options=dict(chunks=(1, 1, 64, 64, 64)),  # Chunk size for efficient I/O
+            compute=True  # Compute immediately (not lazy)
+        )
+        
+        logger.info(f"Successfully wrote OME-ZARR segmentation")
+
+
 def determine_reader_writer(file_ending: str):
     LIST_OF_READERS_WRITERS = [
         NumpyReaderWriter,
         SimpleITKReaderWriter,
         NumpySeriesReaderWriter,
     ]
+    
+    # Add OmeZarrReaderWriter if zarr is available
+    if ZARR_AVAILABLE:
+        LIST_OF_READERS_WRITERS.append(OmeZarrReaderWriter)
 
     for reader_writer in LIST_OF_READERS_WRITERS:
         if file_ending.lower() in reader_writer.supported_file_formats:
