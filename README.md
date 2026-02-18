@@ -27,10 +27,11 @@ Or, if you have installed the package:
 
     vesselfm-infer --input-folder /path/to/images --output-folder /path/to/output
 
-**Dask Integration for Large Datasets**: VesselFM now includes built-in Dask support for parallel processing of large image datasets. Dask provides two types of parallelism:
+**Dask Integration for Large Datasets**: VesselFM now includes built-in Dask support for parallel processing of large image datasets. Dask provides three types of parallelism:
 
 1. **Multi-image parallelism** (default): Automatically parallelizes loading and preprocessing of multiple images
-2. **Chunk-level parallelism** (new): Splits individual large images into chunks, processes them in parallel, and merges results with Gaussian blending
+2. **Chunk-level parallelism**: Splits individual large images into chunks, processes them in parallel, and merges results with Gaussian blending
+3. **Multi-GPU parallelism** (new): Distributes chunks across multiple GPUs for accelerated processing of single large images
 
 To control Dask behavior:
 
@@ -45,8 +46,23 @@ To control Dask behavior:
 
     # Disable chunk-level parallelism (use traditional sliding window)
     python -m vesselfm.cli --input-folder /path/to/images --output-folder /path/to/output --disable-dask-chunking
+    
+    # Enable multi-GPU processing (distributes chunks across all available GPUs)
+    python -m vesselfm.cli --input-folder /path/to/images --output-folder /path/to/output --enable-multi-gpu
+    
+    # Specify which GPUs to use (e.g., GPUs 0 and 2)
+    python -m vesselfm.cli --input-folder /path/to/images --output-folder /path/to/output --enable-multi-gpu --gpu-ids 0 2
 
-**Note**: Chunk-level parallelism is enabled by default in the configuration and is particularly beneficial for very large 3D volumes (>500MB).
+**Note**: Chunk-level parallelism is enabled by default in the configuration and is particularly beneficial for very large 3D volumes (>500MB). Multi-GPU processing is especially effective for single large images when multiple GPUs are available.
+
+**OME.ZARR Support**: VesselFM now supports the OME.ZARR format, a cloud-optimized format for storing large multidimensional imaging data. This format is particularly well-suited for very large images that don't fit in memory. To use OME.ZARR format:
+
+    # Process OME.ZARR files (automatically detected by file extension)
+    python -m vesselfm.cli --input-folder /path/to/zarr/files --output-folder /path/to/output
+    
+    # The output will also be saved in OME.ZARR format if the input was OME.ZARR
+
+**Note**: To use OME.ZARR format, install the required dependencies: `pip install ome-zarr zarr`
 
 ### Advanced Usage (Config File)
 For more control, adjust the [config file](vesselfm/seg/configs/inference.yaml) (see `#TODO`) and run:
