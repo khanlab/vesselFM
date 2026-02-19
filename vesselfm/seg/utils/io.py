@@ -4,6 +4,7 @@ import logging
 import os
 import json
 from abc import ABC, abstractmethod
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
@@ -390,7 +391,7 @@ class OmeZarrReaderWriter(BaseReaderWriter):
         Returns:
             Tuple of numpy array and metadata dictionary
         """
-        if isinstance(image_fnames, str):
+        if isinstance(image_fnames, (str, Path)):
             image_fnames = [image_fnames]
             
         image_data = []

@@ -3,6 +3,7 @@
 import os
 import tempfile
 import shutil
+from pathlib import Path
 import pytest
 import numpy as np
 
@@ -112,6 +113,18 @@ class TestOmeZarrReaderWriter:
         
         read_volume, _ = self.reader_writer.read_images(output_path)
         np.testing.assert_array_equal(read_volume, volume_uint16)
+
+    def test_read_images_with_path_object(self):
+        """Test that read_images works with a pathlib.Path object (not just str)."""
+        volume = np.random.randint(0, 255, size=(8, 16, 24), dtype=np.uint8)
+        
+        output_path = os.path.join(self.temp_dir, "test_path_obj.zarr")
+        self.reader_writer.write_seg(volume, output_path)
+        
+        # Read using a Path object (as inference.py passes image paths)
+        path_obj = Path(output_path)
+        read_volume, _ = self.reader_writer.read_images(path_obj)
+        np.testing.assert_array_equal(read_volume, volume)
 
 
 def test_zarr_not_available():
