@@ -8,7 +8,7 @@
 ## 🟢 Installation
 First, set up a conda environment and install dependencies:
 
-    conda create -n vesselfm python=3.9
+    conda create -n vesselfm python=3.11
 
     conda activate vesselfm
 
