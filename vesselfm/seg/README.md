@@ -46,6 +46,54 @@ Adjust the [training](./configs/train.yaml) and [dataset](./configs/data/real_dr
     python vesselfm/seg/train.py
 
 ## Finetune and Evaluation (*Zero*-, *One*-, and *Few*-Shot)
+
+### Option 1: Fine-Tune CLI (Recommended)
+The easiest way to fine-tune vesselFM is using the CLI tool:
+
+    # Minimal usage (baseline model downloaded automatically)
+    vesselfm-finetune \
+        --input-folder /path/to/image_patches \
+        --mask-folder /path/to/mask_patches \
+        --output-dir /path/to/output
+
+    # Provide separate validation folders
+    vesselfm-finetune \
+        --input-folder /path/to/train/images \
+        --mask-folder /path/to/train/masks \
+        --val-input-folder /path/to/val/images \
+        --val-mask-folder /path/to/val/masks \
+        --output-dir /path/to/output
+
+    # Few-shot fine-tuning (3 samples)
+    vesselfm-finetune \
+        --input-folder /path/to/images \
+        --mask-folder /path/to/masks \
+        --output-dir /path/to/output \
+        --num-shots 3
+
+    # Zero-shot evaluation only (no training)
+    vesselfm-finetune \
+        --input-folder /path/to/images \
+        --mask-folder /path/to/masks \
+        --output-dir /path/to/output \
+        --num-shots 0
+
+**Supported image formats**: `.nii.gz`, `.nii`, `.npy`, `.mha`, `.nrrd`, `.zarr`, `.ome.zarr`
+
+**Data layout**: Images in `--input-folder` and masks in `--mask-folder` must share identical filenames:
+
+    images/  sample_001.nii.gz  sample_002.nii.gz
+    masks/   sample_001.nii.gz  sample_002.nii.gz
+
+After training, inference-compatible weights are exported to `<output-dir>/vesselFM_finetuned.pt`.
+Use them with the inference CLI:
+
+    vesselfm-infer \
+        --input-folder /path/to/images \
+        --output-folder /path/to/output \
+        --checkpoint /path/to/output/vesselFM_finetuned.pt
+
+### Option 2: Config File (Advanced)
 Adjust the [finetune](./configs/finetune.yaml) and dataset ([BvEM](./configs/data/eval_bvem.yaml), [MSD8](./configs/data/eval_msd8.yaml), [OCTA](./configs/data/eval_octa.yaml), [SMILE-UHURA](./configs/data/eval_smile.yaml)) config files (see `#TODO`) and run:
 
     python vesselfm/seg/finetune.py data=<eval_smile/eval_octa/eval_msd8/eval_bvem> num_shots=<0/1/3>

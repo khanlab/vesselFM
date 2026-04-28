@@ -56,6 +56,66 @@ For more control, adjust the [config file](vesselfm/seg/configs/inference.yaml) 
 Additional information on inference, pre-training, and fine-tuning are available [here](./vesselfm/seg). Checkpoints will be downloaded automatically and are also available on [Hugging Face 🤗](https://huggingface.co/bwittmann/vesselFM).
 
 
+## 🟢 Fine-Tuning
+
+VesselFM includes a CLI for fine-tuning the baseline model on your own paired image/mask data.
+
+### Quick Start (CLI)
+
+Prepare two folders that contain matching filenames — one for images and one for masks:
+
+    vessels/
+      images/  sample_001.nii.gz  sample_002.nii.gz  ...
+      masks/   sample_001.nii.gz  sample_002.nii.gz  ...
+
+Then run fine-tuning with pixi or directly:
+
+    # with pixi
+    pixi run vesselfm-finetune \
+        --input-folder vessels/images \
+        --mask-folder vessels/masks \
+        --output-dir vessels/finetuned
+
+    # or after package installation
+    vesselfm-finetune \
+        --input-folder vessels/images \
+        --mask-folder vessels/masks \
+        --output-dir vessels/finetuned
+
+The baseline model (`vesselFM_base.pt`) is downloaded automatically from [Hugging Face 🤗](https://huggingface.co/bwittmann/vesselFM) if no `--checkpoint` is provided.
+After training, inference-compatible weights are saved to `vessels/finetuned/vesselFM_finetuned.pt`.
+
+### Using the Fine-Tuned Model for Inference
+
+    vesselfm-infer \
+        --input-folder /path/to/images \
+        --output-folder /path/to/output \
+        --checkpoint vessels/finetuned/vesselFM_finetuned.pt
+
+### Key Options
+
+| Argument | Default | Description |
+|---|---|---|
+| `--input-folder` | *(required)* | Folder with training image patches |
+| `--mask-folder` | *(required)* | Folder with training masks (same filenames) |
+| `--output-dir` | *(required)* | Directory for checkpoints and exported weights |
+| `--checkpoint` | auto-download | Path to baseline `.pt` weights |
+| `--val-input-folder` | — | Separate validation images (auto-split if omitted) |
+| `--val-mask-folder` | — | Separate validation masks |
+| `--val-split` | `0.2` | Fraction of training data used for validation |
+| `--patch-size` | `128 128 128` | Spatial patch size D H W |
+| `--batch-size` | `2` | Training batch size |
+| `--lr` | `1e-5` | Learning rate |
+| `--max-steps` | `1200` | Maximum training steps |
+| `--num-shots` | all | Limit training to first N samples; `0` = zero-shot eval |
+| `--device` | auto | Device, e.g. `cuda:0` or `cpu` |
+| `--no-wandb` | — | Disable Weights & Biases logging |
+| `--wandb-project` | `vesselfm` | W&B project name |
+| `--wandb-offline` | — | Run W&B in offline mode |
+
+For advanced configuration (custom datasets, multi-GPU, etc.) see [here](./vesselfm/seg).
+
+
 ## 🟢 Data Sources
 <img src="docs/data_sources.png">
 
