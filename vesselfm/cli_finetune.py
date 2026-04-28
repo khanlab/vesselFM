@@ -274,7 +274,12 @@ def run_finetune(args):
         else:
             n_val = max(1, int(n_train_max * args.val_split)) if (args.val_split > 0 and n_train_max > 1) else 0
             if n_val == 0:
-                logger.warning("No validation split possible; using all data for training.")
+                logger.warning(
+                    "No validation split possible with the current settings "
+                    "(too few samples or --val-split 0). "
+                    "Training data will be reused for validation — metrics will NOT reflect "
+                    "generalisation. Provide --val-input-folder / --val-mask-folder for reliable evaluation."
+                )
                 train_indices = list(range(n_train_max))
                 val_indices = list(range(n_train_max))  # reuse train as fallback
             else:
@@ -301,7 +306,9 @@ def run_finetune(args):
     logger.info(f"Training samples: {len(train_dataset)}, Validation samples: {len(val_dataset)}")
 
     # ── Build data loaders ───────────────────────────────────────────────────
-    random_sampler = RandomSampler(train_dataset, replacement=True, num_samples=int(1e6))
+    # Draw enough samples to cover max_steps with a comfortable margin.
+    num_train_samples = max(args.max_steps * args.batch_size, len(train_dataset))
+    random_sampler = RandomSampler(train_dataset, replacement=True, num_samples=num_train_samples)
     n_train_workers = 4 if train_indices else 0
     train_loader = DataLoader(
         train_dataset,
