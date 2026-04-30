@@ -8,6 +8,7 @@
 *.ome.zarr
 __pycache__
 
+fine-tuning
 experiments
 results
 result

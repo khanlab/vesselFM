@@ -381,6 +381,7 @@ def run_finetune(args):
         trainer.validate(lightning_module, val_loader)
     else:
         logger.info("Starting fine-tuning…")
+        #print("printing lightning module:", lightning_module, "val_loader:", val_loader)
         trainer.validate(lightning_module, val_loader)
         trainer.fit(lightning_module, train_loader, val_loader)
         logger.info("Fine-tuning complete.")

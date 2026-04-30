@@ -7758,7 +7758,7 @@ packages:
 - pypi: ./
   name: vesselfm
   version: 0.1.0
-  sha256: 74032f64035165c040dd60db18f98f8dee6d1d04259a2c9a58f9aa930fd2ba06
+  sha256: e5d03a4fd86c68f6b71b56609e3ec463f06267de4fefef0848e10de0cd7f4068
   requires_python: '>=3.11'
   editable: true
 - conda: https://conda.anaconda.org/conda-forge/linux-64/wandb-0.24.2-py311hc8fb587_0.conda
