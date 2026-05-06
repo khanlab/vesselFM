@@ -27,6 +27,10 @@ Or, if you have installed the package:
 
     vesselfm-infer --input-folder /path/to/images --output-folder /path/to/output
 
+To use a custom or fine-tuned checkpoint instead of the auto-downloaded baseline:
+
+    vesselfm-infer --input-folder /path/to/images --output-folder /path/to/output --checkpoint /path/to/model.pt
+
 **Dask Integration for Large Datasets**: VesselFM now includes built-in Dask support for parallel processing of large image datasets. Dask provides two types of parallelism:
 
 1. **Multi-image parallelism** (default): Automatically parallelizes loading and preprocessing of multiple images
