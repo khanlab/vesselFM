@@ -366,7 +366,7 @@ def run_finetune(args):
         accelerator=accelerator,
         devices=[device_idx] if accelerator == "gpu" else 1,
         max_steps=args.max_steps,
-        max_epochs=1,
+        max_epochs=args.max_epochs,
         val_check_interval=min(args.val_check_interval, args.max_steps),
         precision="16-mixed" if accelerator == "gpu" else "32",
         callbacks=callbacks,
@@ -478,6 +478,12 @@ def main():
     parser.add_argument("--lr", type=float, default=1e-5, help="Learning rate")
     parser.add_argument(
         "--max-steps", type=int, default=1200, help="Maximum number of training steps"
+    )
+    parser.add_argument(
+        "--max-epochs",
+        type=int,
+        default=1,
+        help="Maximum number of training epochs. Combined with --max-steps: training stops at whichever limit is reached first.",
     )
     parser.add_argument(
         "--val-check-interval",
