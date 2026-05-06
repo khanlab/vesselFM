@@ -16,7 +16,7 @@ dataloader:
 trainer:
   lightning_trainer:
     val_check_interval: 200
-    max_steps: 1200
+    max_steps: 200
     max_epochs: 1
 
   lightning_module:

@@ -108,6 +108,7 @@ def main():
     )
 
     parser.add_argument("--input-folder", type=Path, required=True, help="Path to folder containing input images")
+    parser.add_argument("--checkpoint", type=Path, required=True, help="Path to model checkpoint")
     parser.add_argument("--output-folder", type=Path, required=True, help="Path to folder for saving output segmentations")
 
     parser.add_argument("--mask-folder", type=Path, default=None, help="Path to folder containing ground truth masks")
