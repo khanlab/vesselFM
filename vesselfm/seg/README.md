@@ -15,6 +15,7 @@ The CLI tool accepts the following arguments:
 - `--input-folder`: Path to folder containing input images (required)
 - `--output-folder`: Path to folder for saving output segmentations (required)
 - `--mask-folder`: Path to folder containing ground truth masks for evaluation (optional)
+- `--checkpoint`: Path to model checkpoint `.pt` file. Downloads `vesselFM_base.pt` from HuggingFace if omitted (optional)
 - `--device`: Device to use (e.g., 'cuda:0', 'cpu'), default: 'cuda:0'
 - `--batch-size`: Sliding window batch size (optional)
 - `--patch-size`: Patch size for sliding window inference, 3 values for D, H, W (optional)
