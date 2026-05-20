@@ -76,9 +76,9 @@ Then run fine-tuning with pixi or directly:
 
     # with pixi
     pixi run vesselfm-finetune \
-        --input-folder vessels/images \
-        --mask-folder vessels/masks \
-        --output-dir vessels/finetuned
+        --input-folder fine-tuning/images \
+        --mask-folder fine-tuning/labels \
+        --output-dir checkpoints/finetuned-2patch
 
     # or after package installation
     vesselfm-finetune \
