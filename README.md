@@ -92,9 +92,9 @@ After training, inference-compatible weights are saved to `vessels/finetuned/ves
 ### Using the Fine-Tuned Model for Inference
 
     vesselfm-infer \
-        --input-folder /path/to/images \
-        --output-folder /path/to/output \
-        --checkpoint vessels/finetuned/vesselFM_finetuned.pt
+        --input-folder ./data/test-retest/tof \
+        --output-folder ./data/test-retest/pred \
+        
 
 ### Key Options
 

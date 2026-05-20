@@ -22,9 +22,6 @@ def build_overrides(args) -> list[str]:
     if args.mask_folder:
         overrides.append(f"mask_path={str(args.mask_folder)}")
 
-    if args.checkpoint:
-        overrides.append(f"ckpt_path={str(args.checkpoint)}")
-
     if args.device:
         overrides.append(f"device={args.device}")
 
@@ -111,11 +108,10 @@ def main():
     )
 
     parser.add_argument("--input-folder", type=Path, required=True, help="Path to folder containing input images")
-    parser.add_argument("--checkpoint", type=Path, required=True, help="Path to model checkpoint")
+    #parser.add_argument("--checkpoint", type=Path, required=True, help="Path to model checkpoint")
     parser.add_argument("--output-folder", type=Path, required=True, help="Path to folder for saving output segmentations")
 
     parser.add_argument("--mask-folder", type=Path, default=None, help="Path to folder containing ground truth masks")
-    parser.add_argument("--checkpoint", type=Path, default=None, help="Path to model checkpoint (.pt). Downloads vesselFM_base.pt from HuggingFace if omitted.")
     parser.add_argument("--device", type=str, default=None, help="Device to use (e.g. 'cuda:0', 'cpu')")
     parser.add_argument("--batch-size", type=int, default=None, help="Sliding window batch size")
     parser.add_argument("--patch-size", type=int, nargs=3, default=None, help="Patch size D H W")
@@ -149,10 +145,6 @@ def main():
 
     if not args.input_folder.exists():
         logger.error(f"Input folder does not exist: {args.input_folder}")
-        sys.exit(1)
-
-    if args.checkpoint is not None and not args.checkpoint.exists():
-        logger.error(f"Checkpoint file does not exist: {args.checkpoint}")
         sys.exit(1)
 
     args.output_folder.mkdir(parents=True, exist_ok=True)
