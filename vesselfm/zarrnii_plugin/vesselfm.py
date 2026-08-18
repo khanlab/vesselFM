@@ -197,7 +197,8 @@ class VesselFMPlugin:
                 self.device
             )
             logits = self.inferer(img_tensor, self.model)
-            pred = (logits.cpu().squeeze().sigmoid() > self.threshold).numpy()
+            # Explicit batch/channel handling
+            pred = (logits.cpu()[0,0].sigmoid() > self.threshold).numpy()
 
         result = pred.astype(np.uint8)
 
