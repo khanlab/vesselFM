@@ -1,68 +1,116 @@
 [project]
-authors = [{name = "Ali R. Khan", email = "alik@robarts.ca"}]
+name = "vesselfm"
+dynamic = ["version"]
+description = "VesselFM, a foundation model for universal 3D blood vessel segmentation, with a zarrnii plugin"
+readme = "README.md"
+authors = [{ name = "Ali R. Khan", email = "alik@robarts.ca" }]
+requires-python = ">=3.11"
+# Dependencies are conda packages, declared once in [tool.pixi.package.run-dependencies]
 dependencies = []
-name = "vesselFM"
-requires-python = ">= 3.11"
-version = "0.1.0"
-scripts = { vesselfm-infer = "vesselfm.cli:main" }
+
+[project.scripts]
+vesselfm-infer = "vesselfm.cli:main"
 
 [build-system]
 build-backend = "hatchling.build"
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-vcs"]
 
-[tool.pixi.workspace]
-channels = ["conda-forge"]
-platforms = ["linux-64"]
+[tool.hatch.version]
+source = "vcs"
 
-[tool.pixi.pypi-dependencies]
-vesselfm = { path = ".", editable = true }
-zarrnii = ">=0.17.0-a1,<0.18.0-a1"
-dask = ">=2025.5.1,<2025.12.0"
-h5py = ">=3.14.0"
-simpleitk = ">=2.4.0"
-pylibtiff = ">=0.7.0"
+[tool.hatch.version.raw-options]
+tag_regex = "^v(?P<version>.+)$"
+fallback_version = "0.0.0.dev0"
+version_scheme = "no-guess-dev"
+local_scheme = "no-local-version"
 
 [tool.hatch.build.targets.wheel]
 packages = ["vesselfm"]
 
 
-[tool.pixi.feature.gpu.system-requirements]
-cuda = "12.0"
+# ----------------------------------------------------------------------
+# Pixi workspace
+# ----------------------------------------------------------------------
+
+[tool.pixi.workspace]
+channels = ["conda-forge", "https://prefix.dev/akhanf/khanlab"]
+platforms = [
+    { platform = "linux-64" },
+    { name = "linux-64-cuda", platform = "linux-64", cuda = "12.0" },
+]
+preview = ["pixi-build"]
+
+
+# ----------------------------------------------------------------------
+# Conda package, published to akhanf/khanlab on release
+# (.github/workflows/push_conda.yml). The run-dependencies are the single
+# list of runtime dependencies; the environments get them by depending on
+# this package from source, which pixi installs in editable mode.
+# ----------------------------------------------------------------------
+
+[tool.pixi.package]
+name = "vesselfm"
+# set from the release tag by the publish workflow
+version = "0.0.0.dev0"
+publish = true
+
+[tool.pixi.package.build.backend]
+name = "pixi-build-python"
+version = "*"
+channels = ["conda-forge"]
+
+[tool.pixi.package.host-dependencies]
+hatchling = "*"
+hatch-vcs = "*"
+
+[tool.pixi.package.run-dependencies]
+pytorch = "*"
+monai = ">=1.5.2,<2"
+hydra-core = ">=1.3.2,<2"
+omegaconf = ">=2.3.0,<3"
+lightning = ">=2.6.0,<3"
+huggingface_hub = ">=1.3.7,<2"
+scikit-image = ">=0.26.0,<0.27"
+scikit-learn = ">=1.8.0,<2"
+simpleitk = ">=2.4.0,<3"
+nibabel = ">=5.3.2,<6"
+numpy = ">=2,<3"
+matplotlib-base = ">=3.7,<4"
+tqdm = ">=4.67.2,<5"
+dask = ">=2026.3.0"
+h5py = ">=3.14.0"
+tifffile = "*"
+zarrnii = ">=0.21"
+# training and logging
+wandb = ">=0.24.1"
+tensorboard = ">=2.20.0,<3"
+gpustat = ">=1.1.1,<2"
+
+
+# ----------------------------------------------------------------------
+# Environments
+# ----------------------------------------------------------------------
+
+[tool.pixi.feature.runtime.dependencies]
+vesselfm = { path = "." }
+
+[tool.pixi.feature.cpu]
+platforms = ["linux-64"]
+
+[tool.pixi.feature.cpu.dependencies]
+pytorch-cpu = "*"
+
+[tool.pixi.feature.gpu]
+platforms = ["linux-64-cuda"]
 
 [tool.pixi.feature.gpu.dependencies]
 cuda-version = "12.6.*"
 pytorch-gpu = "*"
 
-[tool.pixi.feature.cpu.dependencies]
-pytorch-cpu = "*"
-
 [tool.pixi.feature.dev.dependencies]
 pytest = "*"
 
 [tool.pixi.environments]
-cpu = ["cpu"]
-dev = ["cpu","dev"]
-default = ["gpu"]
-
-[tool.pixi.dependencies]
-python = ">=3.11,<3.12"
-monai = ">=1.5.2,<2"
-hydra-core = ">=1.3.2,<2"
-scikit-image = ">=0.26.0,<0.27"
-scikit-learn = ">=1.8.0,<2"
-simpleitk = ">=2.4.0,<3"
-tqdm = ">=4.67.2,<5"
-lightning = ">=2.6.0,<3"
-wandb = ">=0.24.1,<0.25"
-numpy = ">=2.4.2,<3"
-matplotlib = ">=3.10.8,<4"
-tensorboard = ">=2.20.0,<3"
-huggingface_hub = ">=1.3.7,<2"
-#h5py = ">=3.13.0,<4"
-#h5py = ">=3.14.0,<4"
-#tifffile = ">=2024.12.12,<2026"
-#pylibtiff = ">=0.7.0,<0.8"
-nibabel = ">=5.3.2,<6"
-gpustat = ">=1.1.1,<2"
-omegaconf = ">=2.3.0,<3"
-#"." = "*"
+default = ["runtime", "gpu"]
+cpu = ["runtime", "cpu"]
+dev = ["runtime", "cpu", "dev"]
