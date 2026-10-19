@@ -22,3 +22,4 @@ wandb
 # pixi environments
 .pixi
 *.egg-info
+*.conda
